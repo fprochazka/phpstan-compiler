@@ -1,0 +1,19 @@
+#!/usr/bin/env php
+<?php declare(strict_types=1);
+
+use PHPStanCompiler\Console\CompileCommand;
+
+require_once __DIR__ . '/../vendor/autoload.php';
+
+\Tracy\Debugger::enable(\Tracy\Debugger::DEVELOPMENT, dirname(__DIR__) . '/tmp');
+\Tracy\Debugger::$maxLength = 10000;
+\Tracy\Debugger::$maxDepth = 5;
+
+array_splice($_SERVER['argv'], 1, 0, ['compile']);
+$_SERVER['argc']++;
+
+$application = new \Symfony\Component\Console\Application('PHPStan - PHP Static Analysis Tool');
+$application->setCatchExceptions(false);
+$application->add(new CompileCommand());
+$application->setDefaultCommand('compile');
+$application->run();
