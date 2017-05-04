@@ -28,6 +28,7 @@ This project does the following
 ```bash
 git clone https://github.com/fprochazka/phpstan-compiler
 cd phpstan-compiler
+composer install
 php -dphar.readonly=0 bin/compiler [--no-extensions] [version]
 ```
 
