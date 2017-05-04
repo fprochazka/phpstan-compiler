@@ -21,7 +21,7 @@ class CompileCommand extends \Symfony\Component\Console\Command\Command
 		$this->setName(self::NAME)
 			->setDescription('Compile executable phar')
 			->addArgument(self::ARGUMENT_VERSION, InputArgument::OPTIONAL, 'Executable reference to build')
-			->addOption(self::OPTION_NO_EXTENSIONS, null, InputOption::VALUE_NONE, 'Should the phar include extensions?')
+			->addOption(self::OPTION_NO_EXTENSIONS, null, InputOption::VALUE_NONE, 'Should the phar include PHPStan extensions?')
 			->addOption(self::OPTION_REPOSITORY, null, InputOption::VALUE_REQUIRED, 'For building from fork', 'https://github.com/phpstan/phpstan.git');
 	}
 
