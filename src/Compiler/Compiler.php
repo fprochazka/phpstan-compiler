@@ -12,7 +12,6 @@ use Symfony\Component\Finder\SplFileInfo;
 class Compiler
 {
 
-	const PHPSTAN_REPOSITORY = 'https://github.com/fprochazka/phpstan.git';
 	const PATCHES_DIR = __DIR__ . '/../../patches';
 
 	/**
@@ -78,7 +77,11 @@ class Compiler
 		$this->out = $output;
 	}
 
-	public function compile(?string $version, bool $noExtensions): void
+	public function compile(
+		?string $version,
+		bool $noExtensions,
+		string $phpStanRepository
+	): void
 	{
 		$tempDir = dirname(__DIR__) . '/../tmp';
 		$buildDir = $tempDir . '/build';
@@ -88,7 +91,7 @@ class Compiler
 		}
 
 		// clone
-		$this->out->write((new Executable('git', $tempDir))->exec('clone', self::PHPSTAN_REPOSITORY, 'build'));
+		$this->out->write((new Executable('git', $tempDir))->exec('clone', $phpStanRepository, 'build'));
 
 		$git = new Executable('git', $buildDir);
 		$composer = new Executable('composer', $buildDir);
