@@ -1,0 +1,13 @@
+diff --git i/src/DI/Config/Loader.php w/src/DI/Config/Loader.php
+index 6e0ce50..03a728e 100644
+--- i/src/DI/Config/Loader.php
++++ w/src/DI/Config/Loader.php
+@@ -48,7 +48,7 @@
+ 		if (isset($data[self::INCLUDES_KEY])) {
+ 			Validators::assert($data[self::INCLUDES_KEY], 'list', "section 'includes' in file '$file'");
+ 			foreach ($data[self::INCLUDES_KEY] as $include) {
+-				if (!preg_match('#([a-z]:)?[/\\\\]#Ai', $include)) {
++				if (!preg_match('#([a-z]+:)?[/\\\\]#Ai', $include)) {
+ 					$include = dirname($file) . '/' . $include;
+ 				}
+ 				$merged = Helpers::merge($this->load($include), $merged);

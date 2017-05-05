@@ -67,6 +67,12 @@ class Compiler
 							'url' => self::PATCHES_DIR . '/nikic/php-parser/prefixing.patch',
 						],
 					],
+					'nette/di' => [
+						[
+							'title' => 'Fixed including of paths with scheme in config loader',
+							'url' => self::PATCHES_DIR . '/nette/di/include-scheme.patch',
+						],
+					],
 				],
 			],
 		],
