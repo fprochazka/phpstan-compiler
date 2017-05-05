@@ -24,7 +24,12 @@ This project does the following
 * When you've chosen to also include the extensions, it makes sure not to prefix libraries that they depend on. For example `phpstan/phpstan-doctrine` has references for `Doctrine` namespace in it - we don't wanna prefix them, but only everything else.
 * Packages everything into a Phar file for you
 
-## Try it
+## Install phpstan.phar as a Composer package
+
+The repository [phpstan/phpstan-shim](https://github.com/phpstan/phpstan-shim) contains compiled phars.
+It would be awesome if you'd help us test them, but keep in mind this is not production ready.
+
+## Compile it yourself
 
 ```bash
 git clone https://github.com/fprochazka/phpstan-compiler
