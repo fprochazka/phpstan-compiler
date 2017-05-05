@@ -7,6 +7,7 @@ namespace PHPStanCompiler\Compiler;
 use Nette\Utils\Strings;
 use Phar;
 use Seld\PharUtils\Timestamps;
+use Symfony\Component\Console\Helper\ProgressBar;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Finder\Finder;
 use Symfony\Component\Finder\SplFileInfo;
@@ -37,9 +38,22 @@ class PharPackager
 			->in($buildDir)
 			->sort(self::finderSort());
 
+		$progress = new ProgressBar($this->out);
+		if (!$this->out->isVerbose()) {
+			$progress->start(count($finder));
+			$progress->setRedrawFrequency($progress->getMaxSteps() / 10);
+		}
 		foreach ($finder as $file) {
-			$this->out->writeln(sprintf('Adding %s', $file->getRelativePathname()));
+			if (!$this->out->isVerbose()) {
+				$progress->advance();
+			} else {
+				$this->out->writeln(sprintf('Adding %s', $file->getRelativePathname()));
+			}
 			$this->addFile($phar, $file);
+		}
+		if (!$this->out->isVerbose()) {
+			$progress->finish();
+			$this->out->writeln('');
 		}
 
 		$this->out->writeln('Adding bin/phpstan');

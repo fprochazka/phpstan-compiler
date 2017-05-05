@@ -7,6 +7,7 @@ use Nette\Neon\Neon;
 use Nette\Utils\Strings;
 use PHPStanCompiler\Parser\PhpParser;
 use PHPStanCompiler\Parser\PhpTokensIterator;
+use Symfony\Component\Console\Helper\ProgressBar;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Finder\Finder;
 use Symfony\Component\Finder\SplFileInfo;
@@ -31,22 +32,58 @@ class AutoPrefixer
 
 	public function prefix(string $projectDir, array $phpstanDependencies, array $phpstanForcePrefixNamespaces, array $notPrefixedExtensionNamespaces): void
 	{
+		$this->out->writeln("\nPrefixing vendor");
+
 		$prefixClasses = $this->getPrefixClasses($projectDir, $phpstanDependencies);
 
-		foreach ($this->findPhpStanPhpFiles($projectDir, $phpstanDependencies) as $file) {
-			$this->out->writeln(sprintf('Prefixing <info>%s</info>', $file->getRelativePathname()));
+		$phpStanPhpFiles = $this->findPhpStanPhpFiles($projectDir, $phpstanDependencies);
+		$phpStanNeonFiles = $this->findPhpStanNeonFiles($projectDir, $phpstanDependencies);
+
+		$progress = new ProgressBar($this->out);
+		if (!$this->out->isVerbose()) {
+			$progress->start(count($phpStanPhpFiles) + count($phpStanNeonFiles));
+			$progress->setRedrawFrequency($progress->getMaxSteps() / 10);
+		}
+		foreach ($phpStanPhpFiles as $file) {
+			if (!$this->out->isVerbose()) {
+				$progress->advance();
+			} else {
+				$this->out->writeln(sprintf('Prefixing <info>%s</info>', $file->getRelativePathname()));
+			}
 			$this->prefixPhpFile($file->getPathname(), $prefixClasses, $phpstanForcePrefixNamespaces, []);
 		}
 
-		foreach ($this->findPhpStanNeonFiles($projectDir, $phpstanDependencies) as $file) {
-			$this->out->writeln(sprintf('Prefixing <info>%s</info>', $file->getRelativePathname()));
+		foreach ($phpStanNeonFiles as $file) {
+			if (!$this->out->isVerbose()) {
+				$progress->advance();
+			} else {
+				$this->out->writeln(sprintf('Prefixing <info>%s</info>', $file->getRelativePathname()));
+			}
 			$this->prefixNeonFile($file->getPathname(), $prefixClasses);
+		}
+		if (!$this->out->isVerbose()) {
+			$progress->finish();
+			$this->out->writeln('');
 		}
 
 		foreach ($notPrefixedExtensionNamespaces as $package => $notPrefixedNamespaces) {
-			foreach ($this->findAllPhpFiles($projectDir . '/' . ($vendorPackagePrefix = 'vendor/' . $package . '/')) as $file) {
-				$this->out->writeln(sprintf('Prefixing <info>%s</info>', $vendorPackagePrefix . $file->getRelativePathname()));
+			$this->out->writeln(sprintf("\nPrefixing %s", $package));
+			$packagePhpFiles = $this->findAllPhpFiles($projectDir . '/' . ($vendorPackagePrefix = 'vendor/' . $package . '/'));
+			if (!$this->out->isVerbose()) {
+				$progress->start(count($packagePhpFiles));
+				$progress->setRedrawFrequency($progress->getMaxSteps() / 10);
+			}
+			foreach ($packagePhpFiles as $file) {
+				if (!$this->out->isVerbose()) {
+					$progress->advance();
+				} else {
+					$this->out->writeln(sprintf('Prefixing <info>%s</info>', $vendorPackagePrefix . $file->getRelativePathname()));
+				}
 				$this->prefixPhpFile($file->getPathname(), $prefixClasses, [], $notPrefixedNamespaces);
+			}
+			if (!$this->out->isVerbose()) {
+				$progress->finish();
+				$this->out->writeln('');
 			}
 		}
 	}
@@ -159,10 +196,7 @@ class AutoPrefixer
 		}
 	}
 
-	/**
-	 * @return \Iterator|\Symfony\Component\Finder\SplFileInfo[]
-	 */
-	private function findPhpStanPhpFiles(string $dir, array $phpstanDependencies): \Iterator
+	private function findPhpStanPhpFiles(string $dir, array $phpstanDependencies): Finder
 	{
 		$finder = new Finder();
 		$finder->files()
@@ -172,13 +206,10 @@ class AutoPrefixer
 			->in($dir)
 			->filter(self::filterPhpstanDependencies($phpstanDependencies));
 
-		return $finder->getIterator();
+		return $finder;
 	}
 
-	/**
-	 * @return \Iterator|\Symfony\Component\Finder\SplFileInfo[]
-	 */
-	private function findAllPhpFiles(string $packageDir): \Iterator
+	private function findAllPhpFiles(string $packageDir): Finder
 	{
 		$finder = new Finder();
 		$finder->files()
@@ -186,13 +217,10 @@ class AutoPrefixer
 			->name('*.php')
 			->in($packageDir);
 
-		return $finder->getIterator();
+		return $finder;
 	}
 
-	/**
-	 * @return \Iterator|\Symfony\Component\Finder\SplFileInfo[]
-	 */
-	private function findPhpStanNeonFiles(string $dir, array $phpstanDependencies): \Iterator
+	private function findPhpStanNeonFiles(string $dir, array $phpstanDependencies): Finder
 	{
 		$finder = new Finder();
 		$finder->files()
@@ -201,7 +229,7 @@ class AutoPrefixer
 			->in($dir)
 			->filter(self::filterPhpstanDependencies($phpstanDependencies));
 
-		return $finder->getIterator();
+		return $finder;
 	}
 
 	private function getPrefixClasses(string $projectDir, array $phpstanDependencies): array
