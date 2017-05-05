@@ -103,6 +103,10 @@ class Compiler
 		$this->out->write($git->exec('checkout --force', $version));
 		$commit = rtrim($git->exec('log --pretty="%H" -n1 HEAD'));
 
+		// read version date
+		$versionDate = new \DateTime(trim($git->exec('log -n1 --pretty=%ci HEAD')));
+		$versionDate->setTimezone(new \DateTimeZone('UTC'));
+
 		// remove dev stuff
 		$this->fs->remove($buildDir . '/tests');
 		$this->fs->remove($buildDir . '/build');
@@ -177,7 +181,7 @@ class Compiler
 		if ($this->fs->exists($pharFile = $tempDir . '/phpstan-' . $version . '.phar')) {
 			$this->fs->remove($pharFile);
 		}
-		(new PharPackager($this->out))->package($buildDir, $pharFile);
+		(new PharPackager($this->out))->package($buildDir, $pharFile, $versionDate->format(\DateTime::ATOM));
 	}
 
 }

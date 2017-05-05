@@ -6,6 +6,7 @@ namespace PHPStanCompiler\Compiler;
 
 use Nette\Utils\Strings;
 use Phar;
+use Seld\PharUtils\Timestamps;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Finder\Finder;
 use Symfony\Component\Finder\SplFileInfo;
@@ -21,7 +22,7 @@ class PharPackager
 		$this->out = $output;
 	}
 
-	public function package(string $buildDir, string $pharFile): void
+	public function package(string $buildDir, string $pharFile, string $versionDate): void
 	{
 		$this->out->writeln("\nBuilding phpstan.phar");
 
@@ -33,8 +34,6 @@ class PharPackager
 		$finder->files()
 			->ignoreVCS(true)
 			->name('*')
-//			->notName('Compiler.php')
-//			->notName('ClassLoader.php')
 			->in($buildDir)
 			->sort(self::finderSort());
 
@@ -52,10 +51,10 @@ class PharPackager
 		$phar->stopBuffering();
 		unset($phar);
 
-//		// re-sign the phar with reproducible timestamp / signature
-//		$util = new Timestamps($pharFile);
-//		$util->updateTimestamps($versionDate);
-//		$util->save($pharFile, \Phar::SHA1);
+		// re-sign the phar with reproducible timestamp / signature
+		$util = new Timestamps($pharFile);
+		$util->updateTimestamps($versionDate);
+		$util->save($pharFile, \Phar::SHA1);
 
 		$this->out->writeln('Phar generated');
 	}
