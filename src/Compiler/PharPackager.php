@@ -23,7 +23,7 @@ class PharPackager
 		$this->out = $output;
 	}
 
-	public function package(string $buildDir, string $pharFile, string $versionDate): void
+	public function package(string $buildDir, string $pharFile, array $phpstanDependencies, string $versionDate): void
 	{
 		$this->out->writeln("\nBuilding phpstan.phar");
 
@@ -36,6 +36,7 @@ class PharPackager
 			->ignoreVCS(true)
 			->name('*')
 			->in($buildDir)
+			->filter(self::filterPhpstanDependencies($phpstanDependencies))
 			->sort(self::finderSort());
 
 		$progress = new ProgressBar($this->out);
@@ -78,18 +79,9 @@ class PharPackager
 		$realPath = $file->getRealPath();
 		$content = file_get_contents($realPath);
 
-		if ($strip && Strings::endsWith(basename($realPath), '.php')) {
-//			$content = $this->stripWhitespace($content);
-
-		} elseif ('LICENSE' === basename($realPath)) {
+		if ('LICENSE' === basename($realPath)) {
 			$content = "\n" . $content . "\n";
 		}
-
-//		if ($path === 'src/Composer/Composer.php') {
-//			$content = str_replace('@package_version@', $this->version, $content);
-//			$content = str_replace('@package_branch_alias_version@', $this->branchAliasVersion, $content);
-//			$content = str_replace('@release_date@', $this->versionDate->format('Y-m-d H:i:s'), $content);
-//		}
 
 		$phar->addFromString($file->getRelativePathname(), $content);
 	}
@@ -117,6 +109,31 @@ EOF;
 	{
 		return function (\SplFileInfo $a, \SplFileInfo $b): int {
 			return strcmp(strtr($a->getRealPath(), '\\', '/'), strtr($b->getRealPath(), '\\', '/'));
+		};
+	}
+
+	private static function filterPhpstanDependencies($phpstanDependencies): \Closure
+	{
+		return function (SplFileInfo $file) use ($phpstanDependencies): bool {
+			if (!Strings::startsWith($file->getRelativePathname(), 'vendor/')) {
+				return true;
+			}
+
+			if (Strings::startsWith($file->getRelativePathname(), 'vendor/composer')) {
+				return true;
+			}
+
+			if (Strings::startsWith($file->getRelativePathname(), 'vendor/autoload.php')) {
+				return true;
+			}
+
+			foreach ($phpstanDependencies as $dependency) {
+				if (Strings::startsWith($file->getRelativePathname(), 'vendor/' . $dependency . '/')) {
+					return true;
+				}
+			}
+
+			return false;
 		};
 	}
 

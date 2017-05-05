@@ -3,6 +3,7 @@
 namespace PHPStanCompiler\Compiler;
 
 use Nette\Utils\Json;
+use Nette\Utils\Strings;
 use PHPStanCompiler\Executable;
 use Symfony\Component\Console\Output\OutputInterface;
 use Symfony\Component\Filesystem\Filesystem;
@@ -112,26 +113,7 @@ class Compiler
 		$this->fs->remove($buildDir . '/build');
 
 		// fix composer.json
-		$composerMeta = Json::decode(file_get_contents($buildDir . '/composer.json'), Json::FORCE_ARRAY);
-		// remove dev dependencies (they create conflicts)
-		unset($composerMeta['require-dev'], $composerMeta['autoload-dev']);
-		// extra paranoid autoloader conflicts prevention
-		$composerMeta['autoloader-suffix'] = 'PhpStanPhar' . $commit;
-
-		// make sure dg/composer-cleaner doesn't remove important files
-		foreach (self::$extensions as $extensionName => $_) {
-			$composerMeta['config']['cleaner-ignore'][$extensionName] = [
-				'extension.neon',
-				'rules.neon',
-			];
-		}
-
-		// configure patches
-		$composerMeta['repositories'][] = self::$phpstanVendorPatchesRepository;
-
-		// force classmap autoload of everything in vendor
-		$composerMeta['autoload']['classmap'] = ['vendor'];
-		file_put_contents($buildDir . '/composer.json', Json::encode($composerMeta, Json::PRETTY));
+		$this->fixComposerJson($buildDir, $commit);
 
 		// get list of phpstan dependencies
 		$this->out->write($composer->exec('update --no-dev'));
@@ -156,23 +138,7 @@ class Compiler
 		);
 
 		// remove unnecessary packages
-		$finder = new Finder();
-		$finder->directories()
-			->ignoreVCS(true)
-			->name('*')
-			->exclude('composer')
-			->depth(1)
-			->in($buildDir . '/vendor')
-			->filter(
-				function (SplFileInfo $file) use ($phpstanDependencies): bool {
-					return !array_key_exists($file->getRelativePathname(), self::$extensions)
-						&& !in_array($file->getRelativePathname(), $phpstanDependencies, true);
-				}
-			);
-		foreach ($finder as $directory) {
-			$this->out->writeln(sprintf('Removing <info>%s</info>', $directory->getRelativePathname()));
-			$this->fs->remove($directory->getPathname());
-		}
+		$this->cleanupDependencies($buildDir, $phpstanDependencies);
 
 		// rebuild classmap
 		$this->out->write($composer->exec('dump-autoload --optimize --classmap-authoritative'));
@@ -181,7 +147,57 @@ class Compiler
 		if ($this->fs->exists($pharFile = $tempDir . '/phpstan-' . $version . '.phar')) {
 			$this->fs->remove($pharFile);
 		}
-		(new PharPackager($this->out))->package($buildDir, $pharFile, $versionDate->format(\DateTime::ATOM));
+		(new PharPackager($this->out))->package(
+			$buildDir,
+			$pharFile,
+			$phpstanDependencies,
+			$versionDate->format(\DateTime::ATOM)
+		);
+	}
+
+	private function fixComposerJson(string $buildDir, string $commit): void
+	{
+		$composerMeta = Json::decode(file_get_contents($buildDir . '/composer.json'), Json::FORCE_ARRAY);
+		// remove dev dependencies (they create conflicts)
+		unset($composerMeta['require-dev'], $composerMeta['autoload-dev']);
+		// extra paranoid autoloader conflicts prevention
+		$composerMeta['autoloader-suffix'] = 'PhpStanPhar' . $commit;
+
+		// make sure dg/composer-cleaner doesn't remove important files
+		foreach (self::$extensions as $extensionName => $_) {
+			$composerMeta['config']['cleaner-ignore'][$extensionName] = [
+				'extension.neon',
+				'rules.neon',
+			];
+		}
+
+		// configure patches
+		$composerMeta['repositories'][] = self::$phpstanVendorPatchesRepository;
+
+		// force classmap autoload of everything in vendor
+		$composerMeta['autoload']['classmap'] = ['vendor'];
+		file_put_contents($buildDir . '/composer.json', Json::encode($composerMeta, Json::PRETTY));
+	}
+
+	private function cleanupDependencies(string $buildDir, array $phpstanDependencies): void
+	{
+		$finder = new Finder();
+		$finder->directories()
+			->ignoreVCS(true)
+			->name('*')
+			->depth(1)
+			->in($buildDir . '/vendor')
+			->filter(
+				function (SplFileInfo $file) use ($phpstanDependencies): bool {
+					return !Strings::startsWith($file->getRelativePathname(), 'vendor/composer')
+						&& !array_key_exists($file->getRelativePathname(), self::$extensions)
+						&& !in_array($file->getRelativePathname(), $phpstanDependencies, true);
+				}
+			);
+		foreach ($finder as $directory) {
+			$this->out->writeln(sprintf('Removing <info>%s</info>', $directory->getRelativePathname()));
+			$this->fs->remove($directory->getPathname());
+		}
 	}
 
 }
