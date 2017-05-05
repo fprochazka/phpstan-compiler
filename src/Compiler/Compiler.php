@@ -15,6 +15,12 @@ class Compiler
 
 	const PATCHES_DIR = __DIR__ . '/../../patches';
 
+	/** @var array */
+	private static $buildTools = [
+		'dg/composer-cleaner:^1.0',
+		'phpstan/package-patches:^1.0',
+	];
+
 	/**
 	 * @var array package => [List of namespaces not to be prefixed]
 	 */
@@ -120,7 +126,7 @@ class Compiler
 		$phpstanDependencies = array_filter(preg_split("~[\n\r\t ]+~", $composer->exec('show --name-only')));
 
 		// install extensions and do a cleanup
-		$this->out->write($composer->exec('require --no-update', 'dg/composer-cleaner:^1.0', 'phpstan/package-patches:^1.0'));
+		$this->out->write($composer->exec('require --no-update', ...self::$buildTools));
 		if ($noExtensions === false) {
 			$this->out->write($composer->exec('require --no-update', ...array_keys(self::$extensions)));
 		}
@@ -189,7 +195,8 @@ class Compiler
 			->in($buildDir . '/vendor')
 			->filter(
 				function (SplFileInfo $file) use ($phpstanDependencies): bool {
-					return !Strings::startsWith($file->getRelativePathname(), 'vendor/composer')
+					return !Strings::startsWith($file->getRelativePathname(), 'vendor/bin')
+						&& !Strings::startsWith($file->getRelativePathname(), 'vendor/composer')
 						&& !array_key_exists($file->getRelativePathname(), self::$extensions)
 						&& !in_array($file->getRelativePathname(), $phpstanDependencies, true);
 				}
@@ -197,6 +204,46 @@ class Compiler
 		foreach ($finder as $directory) {
 			$this->out->writeln(sprintf('Removing <info>%s</info>', $directory->getRelativePathname()));
 			$this->fs->remove($directory->getPathname());
+		}
+
+		// make sure composer doesn't freak out
+		$composerInstalled = Json::decode(file_get_contents($buildDir . '/composer.lock'), Json::FORCE_ARRAY);
+		foreach ($composerInstalled['packages'] as $packageMeta) {
+			$packageDir = $buildDir . '/vendor/' . $packageMeta['name'];
+
+			if (isset($packageMeta['autoload']) && is_array($packageMeta['autoload'])) {
+				foreach ($packageMeta['autoload'] as $autoloadType => $autoloadDefinition) {
+					switch ($autoloadType) {
+						case 'classmap':
+							foreach ($autoloadDefinition as $directory) {
+								$this->fs->mkdir($packageDir . '/' . $directory);
+							}
+							break;
+						case 'psr-0':
+						case 'psr-4':
+							foreach ($autoloadDefinition as $namespace => $directory) {
+								$this->fs->mkdir($packageDir . '/' . $directory);
+							}
+							break;
+						case 'files':
+							foreach ($autoloadDefinition as $file) {
+								$this->fs->dumpFile($packageDir . '/' . $file, "<?php\n");
+							}
+							break;
+						case 'exclude-from-classmap':
+							break;
+						default:
+							throw new \UnexpectedValueException(sprintf('Unknown autoloader type %s', $autoloadType));
+					}
+				}
+			}
+
+			if (isset($packageMeta['bin']) && is_array($packageMeta['bin'])) {
+				foreach ($packageMeta['bin'] as $file) {
+					$this->fs->dumpFile($packageDir . '/' . $file, "<?php\n");
+					$this->fs->dumpFile($buildDir . '/vendor/bin/' . basename($file), "<?php\n");
+				}
+			}
 		}
 	}
 

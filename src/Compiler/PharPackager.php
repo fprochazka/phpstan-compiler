@@ -36,7 +36,6 @@ class PharPackager
 			->ignoreVCS(true)
 			->name('*')
 			->in($buildDir)
-			->filter(self::filterPhpstanDependencies($phpstanDependencies))
 			->sort(self::finderSort());
 
 		$progress = new ProgressBar($this->out);
@@ -109,31 +108,6 @@ EOF;
 	{
 		return function (\SplFileInfo $a, \SplFileInfo $b): int {
 			return strcmp(strtr($a->getRealPath(), '\\', '/'), strtr($b->getRealPath(), '\\', '/'));
-		};
-	}
-
-	private static function filterPhpstanDependencies($phpstanDependencies): \Closure
-	{
-		return function (SplFileInfo $file) use ($phpstanDependencies): bool {
-			if (!Strings::startsWith($file->getRelativePathname(), 'vendor/')) {
-				return true;
-			}
-
-			if (Strings::startsWith($file->getRelativePathname(), 'vendor/composer')) {
-				return true;
-			}
-
-			if (Strings::startsWith($file->getRelativePathname(), 'vendor/autoload.php')) {
-				return true;
-			}
-
-			foreach ($phpstanDependencies as $dependency) {
-				if (Strings::startsWith($file->getRelativePathname(), 'vendor/' . $dependency . '/')) {
-					return true;
-				}
-			}
-
-			return false;
 		};
 	}
 
