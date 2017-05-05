@@ -136,7 +136,7 @@ class Compiler
 		if ($noExtensions === false) {
 			$this->out->write($composer->exec('require --no-update', ...array_keys(self::$extensions)));
 		}
-		$this->out->write($composer->exec('update --no-dev --optimize-autoloader --classmap-authoritative'));
+		$this->out->write($composer->exec('update --no-dev --no-suggest --optimize-autoloader --classmap-authoritative'));
 
 		// version everything to see a diff
 		// $this->out->write($git->exec('add -f .'));
