@@ -8,8 +8,8 @@ cache:
 
 env:
   matrix:
-    - BRANCH=fp-normalize-phar-path LEVEL=6 EXT="--no-extensions"
-    - BRANCH=0.6.4-fixed LEVEL=5 EXT=""
+    - BRANCH=master LEVEL=6 EXT="--no-extensions" REPOSITORY="https://github.com/phpstan/phpstan.git"
+    - BRANCH=0.6.4-fixed LEVEL=5 EXT="" REPOSITORY="https://github.com/fprochazka/phpstan.git"
 
 php:
   - 7.1
@@ -18,5 +18,5 @@ install:
   - travis_retry composer install --no-interaction --prefer-dist
 
 script:
-  - php -dphar.readonly=0 bin/compile -v --repository "https://github.com/fprochazka/phpstan.git" $EXT $BRANCH
+  - php -dphar.readonly=0 bin/compile -v --repository $REPOSITORY $EXT $BRANCH
   - php -dmemory_limit=2G ./tmp/phpstan-$BRANCH.phar analyse -l $LEVEL src
