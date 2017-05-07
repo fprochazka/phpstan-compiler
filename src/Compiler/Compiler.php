@@ -115,6 +115,7 @@ class Compiler
 		}
 		$this->out->write($git->exec('checkout --force', $version));
 		$commit = rtrim($git->exec('log --pretty="%H" -n1 HEAD'));
+		$this->out->writeln(sprintf('Building %s from %s', $commit, $phpStanRepository));
 
 		// read version date
 		$versionDate = new \DateTime(trim($git->exec('log -n1 --pretty=%ci HEAD')));
