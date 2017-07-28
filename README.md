@@ -35,7 +35,7 @@ It would be awesome if you'd help us test them, but keep in mind this is not pro
 git clone https://github.com/fprochazka/phpstan-compiler
 cd phpstan-compiler
 composer install
-php -dphar.readonly=0 bin/compiler [--no-extensions] [version]
+php -dphar.readonly=0 bin/compile [--no-extensions] [version]
 ```
 
 Generated phar will be in `tmp/`
